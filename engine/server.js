@@ -1,4 +1,6 @@
 const net = require('net');
+const LRUCache = require('./lru.js');
+const cache = new LRUCache();
 
 // Core metrics tracking object (will stream this to monitor server later)
 const metrics = {
@@ -31,7 +33,8 @@ function handleDatabaseCommand(socket, payload) {
                 socket.write('ERR: SET requires both key and value components\n');
                 return;
             }
-            dbMemory.set(key, value);
+            // dbMemory.set(key, value);
+            cache.insert(key, value);
             socket.write('OK\n');
             break;
 
@@ -40,8 +43,9 @@ function handleDatabaseCommand(socket, payload) {
                 socket.write('ERR: GET requires a valid key component\n');
                 return;
             }
-            if (dbMemory.has(key)) {
-                socket.write(`VALUE|${dbMemory.get(key)}\n`);
+            const res = cache.getVal(key);
+            if (res != undefined) {
+                socket.write(`VALUE|${res}\n`);
             } else {
                 socket.write('ERR: KEY_NOT_FOUND\n');
             }
@@ -52,8 +56,8 @@ function handleDatabaseCommand(socket, payload) {
                 socket.write('ERR: DEL requires a valid key component\n');
                 return;
             }
-            if (dbMemory.has(key)) {
-                dbMemory.delete(key);
+            const flag = cache.remove(key);
+            if (flag !== undefined) {
                 socket.write('OK\n');
             } else {
                 socket.write('ERR: KEY_NOT_FOUND\n');
@@ -77,6 +81,7 @@ const server = net.createServer((socket) => {
     socket.on('data', (chunk) => {
         // Append incoming byte chunk casted to UTF-8 text string
         dynamicBuffer += chunk.toString('utf8');
+        console.log(`Dynamic buffer : ${dynamicBuffer}`);
 
         // Extract and execute full instruction sets split by delimiter
         let newlineIndex;
