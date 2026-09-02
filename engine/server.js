@@ -22,6 +22,7 @@ function handleDatabaseCommand(socket, payload) {
     const command = tokens[0].toUpperCase();
     const key = tokens[1];
     const value = tokens[2];
+    const ttl = tokens[3];
 
     if (!command) return;
 
@@ -31,9 +32,19 @@ function handleDatabaseCommand(socket, payload) {
                 socket.write('ERR: SET requires both key and value components\n');
                 return;
             }
-            // dbMemory.set(key, value);
-            cache.insert(key, value);
-            socket.write('OK\n');
+            if(ttl !== undefined && ttl.trim() !== ''){
+                const parsedTTL = parseInt(ttl, 10);
+                if(!isNaN(parsedTTL)){
+                    console.log("calling insert by putting a ttl");
+                    console.log("TTL value : ", parsedTTL)
+                    cache.insert(key, value, parsedTTL);
+                }else{
+                    socket.write("ERR: TTL must be an integer");
+                }
+            }else{
+                cache.insert(key, value);
+            }
+            socket.write("OK\n");
             break;
 
         case 'GET':
@@ -42,7 +53,7 @@ function handleDatabaseCommand(socket, payload) {
                 return;
             }
             const res = cache.getVal(key);
-            if (res != undefined) {
+            if (res != null) {
                 socket.write(`VALUE|${res}\n`);
             } else {
                 socket.write('ERR: KEY_NOT_FOUND\n');

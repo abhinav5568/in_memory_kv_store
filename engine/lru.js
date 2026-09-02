@@ -1,9 +1,19 @@
 class Node {
-  constructor(_key, _val) {
+  constructor(_key, _val, _ttl = Infinity) {
     this.key = _key;
     this.val = _val;
     this.next = null;
     this.prev = null;
+    
+    let safe_ttl = _ttl ?? Infinity;
+    if(safe_ttl === Infinity){
+      this.expires_at = Infinity;
+    }else if(typeof safe_ttl === "number" && safe_ttl > 1000000000000){
+      this.expires_at = safe_ttl;
+    }
+    else{
+      this.expires_at = Date.now() + _ttl;
+    }
   }
 }
 
@@ -20,8 +30,8 @@ class DLL {
  /*
   Adds items to the head
  */
-  addItem(_key, _val) {
-    let newNode = new Node(_key, _val);
+  addItem(_key, _val, _ttl) {
+    let newNode = new Node(_key, _val, _ttl);
     if (this.head === null) {
       this.head = newNode;
       this.tail = newNode;
@@ -79,6 +89,10 @@ class DLL {
     nodeRef.next = null;
   }
 
+  /*
+    Doesn't affect the timer. 
+  */
+
   display() {
     if (!this.isEmpty()) {
       console.log("[DLL] Printing from MRU (Head) to LRU (Tail):");
@@ -102,13 +116,19 @@ class LRUCache {
     this.command_count = 0;
   }
 
-  insert(_key, _val) {
+  insert(_key, _val, _ttl) {
     this.command_count++;
     
     if (this.lruMap.has(_key)) {
       let nodeRef = this.lruMap.get(_key);
+      let TTL;
+      if(_ttl != undefined){
+        TTL = _ttl;
+      }else{
+        TTL = nodeRef.expires_at;
+      }
       this.dll.removeItem(nodeRef);
-      let newNode = this.dll.addItem(_key, _val);
+      let newNode = this.dll.addItem(_key, _val, TTL);
       this.lruMap.set(_key, newNode);
       return;
     }
@@ -123,7 +143,7 @@ class LRUCache {
     }
 
     
-    let newNode = this.dll.addItem(_key, _val);
+    let newNode = this.dll.addItem(_key, _val, _ttl);
     this.lruMap.set(_key, newNode);
   }
 
@@ -134,12 +154,21 @@ class LRUCache {
       console.log("[LRU] Invalid Key:", _key);
       return null;
     }
+
     let nodeRef = this.lruMap.get(_key);
-    const value = nodeRef.val;
+
+    // passive removal, early null return
+    if(nodeRef.expires_at != Infinity && Date.now() > nodeRef.expires_at){
+      this.dll.removeItem(nodeRef);
+      this.lruMap.delete(nodeRef.key);
+      return null;
+    }
 
     // Refresh item priority (Move to head)
+    const value = nodeRef.val;
+    const TTL = nodeRef.expires_at; 
     this.dll.removeItem(nodeRef);
-    let newNode = this.dll.addItem(_key, value);
+    let newNode = this.dll.addItem(_key, value, TTL);
     this.lruMap.set(_key, newNode);
 
     return value;
@@ -153,6 +182,19 @@ class LRUCache {
     this.dll.removeItem(nodeRef);
     this.lruMap.delete(_key);
     return true;
+  }
+
+  setTTL(_key, _ttl){
+    if(!this.lruMap.has(_key)){
+      console.log("Key doesn't exist.");
+      return null;
+    }
+
+    let nodeRef = this.lruMap.get(_key);
+    let value = nodeRef.val;
+    this.dll.removeItem(nodeRef);
+    this.dll.addItem(_key, value, _ttl);
+    return nodeRef.val;
   }
 
   stats(){
@@ -171,29 +213,5 @@ class LRUCache {
   }
 }
 
-// Test
-function testLRU() {
-  let cache = new LRUCache(5);
-  cache.insert(1, "first");
-  cache.insert(2, "second");
-  cache.insert(3, "third");
-  cache.insert(4, "fourth");
-  cache.insert(5, "fifth");
-  
-  console.log("Initial Cache Size:", cache.lruSize());
-  cache.dll.display();
 
-  console.log("\n--- Triggering Eviction ---");
-  cache.insert(6, "sixth"); // Should evict key 1
-  console.log("Cache Size after eviction:", cache.lruSize());
-  cache.dll.display();
-
-  console.log("\n--- Accessing Key 2 (Should move to Head) ---");
-  cache.getVal(2);
-  cache.dll.display();
-  let metrics = cache.command_count();
-  console.log("metrics count !");
-}
-
-// testLRU();
 module.exports = LRUCache;
