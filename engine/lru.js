@@ -1,189 +1,199 @@
-let lruMap = new Map();
-
-
 class Node {
-    constructor (_key, _val){
-
-        this.key = _key;
-        this.val = _val;
-
-        this.next = null;
-        this.prev = null;
-    }
+  constructor(_key, _val) {
+    this.key = _key;
+    this.val = _val;
+    this.next = null;
+    this.prev = null;
+  }
 }
 
 class DLL {
-    
-    constructor (){
-        this.head = null;
-        this.tail = null;
+  constructor() {
+    this.head = null; 
+    this.tail = null;
+  }
+
+  isEmpty() {
+    return this.head === null;
+  }
+
+ /*
+  Adds items to the head
+ */
+  addItem(_key, _val) {
+    let newNode = new Node(_key, _val);
+    if (this.head === null) {
+      this.head = newNode;
+      this.tail = newNode;
+    } else {
+      newNode.prev = this.head;
+      this.head.next = newNode;
+      this.head = newNode;
     }
+    return newNode;
+  }
 
-    isEmpty (){
-        if(this.head === null){
-            return true;
-        }
-        return false;
+  removeFromHead() {
+    if (!this.head) return;
+    let temp = this.head;
+    if (temp.prev !== null) {
+      this.head = temp.prev;
+      this.head.next = null;
+    } else {
+      this.head = null;
+      this.tail = null;
     }
+  }
 
-    /*
-        Adds item to the head 
-        if map has the key then update the value at the given node
-        otherwise add a new node to the head
-    */
-
-    updateItem (_key, _val){
-        let nodeRef = lruMap.get(_key);
-        nodeRef.val = _val;
+  removeFromTail() {
+    if (!this.tail) return;
+    let temp = this.tail;
+    if (temp.next !== null) {
+      this.tail = temp.next;
+      this.tail.prev = null;
+    } else {
+      this.head = null;
+      this.tail = null;
     }
+  }
 
-    addItem (_key, _val){
+  removeFromMiddle(nodeRef) {
+    nodeRef.next.prev = nodeRef.prev;
+    nodeRef.prev.next = nodeRef.next;
+  }
 
-        if(lruMap.has(_key)){
-            this.updateItem(_key, _val);
-            return;
-        }
+  removeItem(nodeRef) {
+    if (!nodeRef) return;
 
-        let newNode = new Node(_key, _val);
-
-        if(this.head == null){
-            this.head = newNode;
-            this.tail = newNode;
-            lruMap.set(_key, newNode);
-            return;
-        }
-
-        newNode.prev = this.head;
-        newNode.next = null;
-
-        this.head.next = newNode;
-        this.head = newNode;
-        lruMap.set(_key, newNode);
+    if (nodeRef === this.head && nodeRef === this.tail) {
+      this.head = null;
+      this.tail = null;
+    } else if (nodeRef === this.tail) {
+      this.removeFromTail();
+    } else if (nodeRef === this.head) {
+      this.removeFromHead();
+    } else {
+      this.removeFromMiddle(nodeRef);
     }
+    nodeRef.prev = null;
+    nodeRef.next = null;
+  }
 
-    /* 
-        Remote item from head , tail or somewhere in center
-    */
-
-    removeFromHead(_flag){
-        let temp = this.head;
-        if(temp.prev != null){
-            temp.prev.next = null;
-            this.head = temp.prev;
-            temp.prev = null;
-        }
-        if(_flag) lruMap.delete(temp.key);
+  display() {
+    if (!this.isEmpty()) {
+      console.log("[DLL] Printing from MRU (Head) to LRU (Tail):");
+      let cur = this.head;
+      let elements = [];
+      while (cur != null) {
+        elements.push(`${cur.key}:${cur.val}`);
+        cur = cur.prev;
+      }
+      console.log(elements.join(" -> "));
     }
-
-    removeFromTail(_flag){
-        let temp = this.tail;
-        if(temp.next != null){
-            temp.next.prev = null;
-            this.tail = temp.next;
-            temp.next = null;
-        }
-        if(_flag) lruMap.delete(temp.key);
-    }
-
-    removeFromMiddle(nodeRef, _flag){
-        nodeRef.next.prev = nodeRef.prev;
-        nodeRef.prev.next = nodeRef.next;
-        nodeRef.prev = null;
-        nodeRef.next = null;
-        if(_flag) lruMap.delete(nodeRef.key);
-    }
-
-    removeItem(_key, _flag){
-
-        if(!lruMap.has(_key)){
-            return;
-        }
-
-        let nodeRef = lruMap.get(_key);
-            
-        if(nodeRef.prev === null){
-            // remove from tail
-            this.removeFromTail(_flag);
-        }else if(nodeRef.next === null){
-            // remove from head
-            this.removeFromHead(_flag);
-        }else{
-            // remove frmo middle
-            this.removeFromMiddle(nodeRef, _flag);
-        }
-        return 1;
-    }
-
-    display (){
-        if(this.isEmpty() == false){
-            console.log("[DLL] Printing the linked list : \n")
-            let cur = this.head;
-            while(cur != null){
-                console.log(`${cur.val} `);
-                cur = cur.prev;
-            }
-        }
-    }
+  }
 }
-
 
 class LRUCache {
-    constructor(){
-        this.item_cap = 5; // max length of dll
-        this.dll = new DLL();
+  constructor(capacity = 5) {
+    this.item_cap = capacity;
+    this.dll = new DLL();
+    this.lruMap = new Map(); 
+    this.evicted_count = 0;
+    this.command_count = 0;
+  }
+
+  insert(_key, _val) {
+    this.command_count++;
+    
+    if (this.lruMap.has(_key)) {
+      let nodeRef = this.lruMap.get(_key);
+      this.dll.removeItem(nodeRef);
+      let newNode = this.dll.addItem(_key, _val);
+      this.lruMap.set(_key, newNode);
+      return;
     }
 
-    /*
-        0 soft remove (we intend to move this item to front, ie recently accessed)
-        (pop the item to head of the lru, to signify most recently used item)
-        1 hard remove (remove from lruMap)
-        (ie. item won't be acccesible if removeItem is called by passing 1)
-    */
-
-    insert(_key, _val){
-        if(lruMap.size >= this.item_cap){
-            console.log("[LRU] Warning: exhausted data store size limit!!");
-            console.log("[LRU] Removing the last node !!");
-            this.dll.removeFromTail(1);
-            this.dll.addItem(_key, _val);
-            return;
-        }
-        this.dll.removeItem(_key, 0);  // removes from intermediary nodes
-        this.dll.addItem(_key, _val); // add to front
+    
+    if (this.lruMap.size >= this.item_cap) {
+      let lruKey = this.dll.tail.key;
+      console.log(`[LRU] Capacity reached! Evicting LRU item: ${lruKey}`);
+      this.dll.removeItem(this.dll.tail);
+      this.lruMap.delete(lruKey);
+      this.evicted_count++;
     }
 
-    getVal(_key){
-        if(!lruMap.has(_key)) {
-            console.log("[LRU] Invalid Key");
-            return;
-        }
-        const res = lruMap.get(_key).val;
-        // update to most recent (soft dlt from ll + adding to head)
-        this.dll.removeItem(_key, 0);
-        this.dll.addItem(_key, res);
+    
+    let newNode = this.dll.addItem(_key, _val);
+    this.lruMap.set(_key, newNode);
+  }
 
-        return res;
-    }
+  getVal(_key) {
+    this.command_count++;
 
-    remove(_key){
-        return this.dll.removeItem(_key, 1);
+    if (!this.lruMap.has(_key)) {
+      console.log("[LRU] Invalid Key:", _key);
+      return null;
     }
+    let nodeRef = this.lruMap.get(_key);
+    const value = nodeRef.val;
+
+    // Refresh item priority (Move to head)
+    this.dll.removeItem(nodeRef);
+    let newNode = this.dll.addItem(_key, value);
+    this.lruMap.set(_key, newNode);
+
+    return value;
+  }
+
+  remove(_key) {
+    this.command_count++;
+
+    if (!this.lruMap.has(_key)) return false;
+    let nodeRef = this.lruMap.get(_key);
+    this.dll.removeItem(nodeRef);
+    this.lruMap.delete(_key);
+    return true;
+  }
+
+  stats(){
+    this.command_count++;
+    let current_status = {
+        key_count : this.lruMap.size,
+        evictions : this.evicted_count, 
+        commands_interpreted : this.command_count
+    }
+    return current_status;
+  }
+
+  lruSize() {
+    this.command_count++;
+    return this.lruMap.size;
+  }
 }
 
+// Test
+function testLRU() {
+  let cache = new LRUCache(5);
+  cache.insert(1, "first");
+  cache.insert(2, "second");
+  cache.insert(3, "third");
+  cache.insert(4, "fourth");
+  cache.insert(5, "fifth");
+  
+  console.log("Initial Cache Size:", cache.lruSize());
+  cache.dll.display();
 
-function testLRU(){
-    let temp = new LRUCache();
-    // console.log("Creating a key value pair in the cache");
-    temp.insert(1, "first");
-    temp.insert(2, "second");
-    temp.insert(3, "third");
-    temp.insert(4, "fourth");
-    temp.insert(5, "fifth");
-    temp.dll.display();
-    temp.insert(6, "sixth");
-    temp.dll.display();
+  console.log("\n--- Triggering Eviction ---");
+  cache.insert(6, "sixth"); // Should evict key 1
+  console.log("Cache Size after eviction:", cache.lruSize());
+  cache.dll.display();
+
+  console.log("\n--- Accessing Key 2 (Should move to Head) ---");
+  cache.getVal(2);
+  cache.dll.display();
+  let metrics = cache.command_count();
+  console.log("metrics count !");
 }
 
 // testLRU();
-
 module.exports = LRUCache;

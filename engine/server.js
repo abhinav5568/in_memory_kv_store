@@ -9,8 +9,6 @@ const metrics = {
     connectedAt: new Date().toISOString()
 };
 
-// Placeholder in-memory storage map
-const dbMemory = new Map();
 
 /**
  * Command Router Matrix
@@ -57,11 +55,16 @@ function handleDatabaseCommand(socket, payload) {
                 return;
             }
             const flag = cache.remove(key);
-            if (flag !== undefined) {
+            if (flag !== false) {
                 socket.write('OK\n');
             } else {
                 socket.write('ERR: KEY_NOT_FOUND\n');
             }
+            break;
+
+        case 'STATS':
+            const status = cache.stats();
+            socket.write(`OK|${JSON.stringify(status)}\n`);
             break;
 
         default:
