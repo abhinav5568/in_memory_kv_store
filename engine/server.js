@@ -1,6 +1,8 @@
 const net = require('net');
 const ConnectionManager = require('./connection_manager.js')
 const connections = new ConnectionManager();
+const aofLogger = require('./aof_logger_engine.js')
+const loggerEngine = new aofLogger();
 
 // Core metrics tracking object (will stream this to monitor server later)
 const metrics = {
@@ -45,6 +47,7 @@ function handleDatabaseCommand(socket, payload) {
 
             if(connections.verifyUser(key)){
                 socket.cache = connections.getCache(key);
+                socket.userID = key;
                 socket.write('SUCCESS: Intialized a memory block. \n');
             }else{
                 socket.write('ERR: Invalid user id, please run INIT first to get one.\n');
@@ -61,12 +64,18 @@ function handleDatabaseCommand(socket, payload) {
                 if(!isNaN(parsedTTL)){
                     console.log("calling insert by putting a ttl\n");
                     console.log("TTL value : ", parsedTTL)
+
+
                     socket.cache.insert(key, value, parsedTTL);
+
+
+                    loggerEngine.log(socket.userID, `SET|${key}|${value}|${parsedTTL}`);
                 }else{
                     socket.write("ERR: TTL must be an integer\n");
                 }
             }else{
                 socket.cache.insert(key, value);
+                loggerEngine.log(socket.userID, `SET|${key}|${value}`)
             }
             socket.write("OK\n");
             break;
@@ -92,6 +101,9 @@ function handleDatabaseCommand(socket, payload) {
             const flag = socket.cache.remove(key);
             if (flag !== false) {
                 socket.write('OK\n');
+
+
+                loggerEngine.log(socket.userID, `DEL|${key}`);
             } else {
                 socket.write('ERR: KEY_NOT_FOUND\n');
             }
@@ -110,7 +122,7 @@ function handleDatabaseCommand(socket, payload) {
 
 // Instantiate the Core TCP Engine
 const server = net.createServer((socket) => {
-
+    socket.userID = null;
     socket.cache = null;
 
     metrics.activeConnections++;
