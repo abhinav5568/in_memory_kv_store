@@ -1,6 +1,6 @@
 const net = require('net');
-const LRUCache = require('./lru.js');
-const cache = new LRUCache();
+const ConnectionManager = require('./connection_manager.js')
+const connections = new ConnectionManager();
 
 // Core metrics tracking object (will stream this to monitor server later)
 const metrics = {
@@ -26,7 +26,31 @@ function handleDatabaseCommand(socket, payload) {
 
     if (!command) return;
 
+    if(!socket.cache && command !== 'AUTH' && command !== 'INIT'){
+        socket.write('ERR: UNAUTHENTICATED!! Please run AUTH|user_id first.');
+        return;
+    }
+
     switch (command) {
+        case 'INIT':
+            const userID = connections.createUser();
+            socket.write(`UUID | ${userID}.\n`);
+            // socket.write('OK\n');
+            break;
+        case 'AUTH': 
+            if(!key){
+                socket.write('ERR: AUTH Requires a key.\n');
+                return;
+            }
+
+            if(connections.verifyUser(key)){
+                socket.cache = connections.getCache(key);
+                socket.write('SUCCESS: Intialized a memory block. \n');
+            }else{
+                socket.write('ERR: Invalid user id, please run INIT first to get one.\n');
+            }
+            socket.write('OK\n');
+        break;
         case 'SET':
             if (!key || !value) {
                 socket.write('ERR: SET requires both key and value components\n');
@@ -35,14 +59,14 @@ function handleDatabaseCommand(socket, payload) {
             if(ttl !== undefined && ttl.trim() !== ''){
                 const parsedTTL = parseInt(ttl, 10);
                 if(!isNaN(parsedTTL)){
-                    console.log("calling insert by putting a ttl");
+                    console.log("calling insert by putting a ttl\n");
                     console.log("TTL value : ", parsedTTL)
-                    cache.insert(key, value, parsedTTL);
+                    socket.cache.insert(key, value, parsedTTL);
                 }else{
-                    socket.write("ERR: TTL must be an integer");
+                    socket.write("ERR: TTL must be an integer\n");
                 }
             }else{
-                cache.insert(key, value);
+                socket.cache.insert(key, value);
             }
             socket.write("OK\n");
             break;
@@ -52,7 +76,7 @@ function handleDatabaseCommand(socket, payload) {
                 socket.write('ERR: GET requires a valid key component\n');
                 return;
             }
-            const res = cache.getVal(key);
+            const res = socket.cache.getVal(key);
             if (res != null) {
                 socket.write(`VALUE|${res}\n`);
             } else {
@@ -65,7 +89,7 @@ function handleDatabaseCommand(socket, payload) {
                 socket.write('ERR: DEL requires a valid key component\n');
                 return;
             }
-            const flag = cache.remove(key);
+            const flag = socket.cache.remove(key);
             if (flag !== false) {
                 socket.write('OK\n');
             } else {
@@ -74,7 +98,7 @@ function handleDatabaseCommand(socket, payload) {
             break;
 
         case 'STATS':
-            const status = cache.stats();
+            const status = socket.cache.stats();
             socket.write(`OK|${JSON.stringify(status)}\n`);
             break;
 
@@ -86,6 +110,9 @@ function handleDatabaseCommand(socket, payload) {
 
 // Instantiate the Core TCP Engine
 const server = net.createServer((socket) => {
+
+    socket.cache = null;
+
     metrics.activeConnections++;
     console.log(`[Engine Connected] Sockets Active: ${metrics.activeConnections}`);
 
