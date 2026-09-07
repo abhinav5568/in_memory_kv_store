@@ -7,9 +7,8 @@ class ConnectionManager{
     }
 
 
-    createUser(){
-        // this.username = _username 
-        this.userID = randomUUID(), 
+    createUser(_userID){
+        this.userID = _userID || randomUUID(), 
         this.user_cache.set(this.userID,new LRUCache())
         return this.userID;
     }

@@ -1,10 +1,10 @@
 const net = require('net');
-const ConnectionManager = require('./connection_manager.js')
-const connections = new ConnectionManager();
+const connections = require('./init/connections.js')
 const aofLogger = require('./aof_logger_engine.js')
 const loggerEngine = new aofLogger();
+const bootstrap = require('./aof_bootstrap.js');
 
-// Core metrics tracking object (will stream this to monitor server later)
+// Core metrics tracking object (tracks metrics only after the last boot)
 const metrics = {
     totalCommands: 0,
     activeConnections: 0,
@@ -19,7 +19,6 @@ const metrics = {
 function handleDatabaseCommand(socket, payload) {
     metrics.totalCommands++;
     
-    // Clean string formatting and argument tokenization
     const tokens = payload.trim().split('|');
     const command = tokens[0].toUpperCase();
     const key = tokens[1];
@@ -50,7 +49,7 @@ function handleDatabaseCommand(socket, payload) {
                 socket.userID = key;
                 socket.write('SUCCESS: Intialized a memory block. \n');
             }else{
-                socket.write('ERR: Invalid user id, please run INIT first to get one.\n');
+                socket.write('ERR: Invalid user id, please run get signup and get a userID before continuing.\n');
             }
             socket.write('OK\n');
         break;
@@ -82,14 +81,14 @@ function handleDatabaseCommand(socket, payload) {
 
         case 'GET':
             if (!key) {
-                socket.write('ERR: GET requires a valid key component\n');
+                socket.write('ERR: GET requires a valid key.\n');
                 return;
             }
             const res = socket.cache.getVal(key);
             if (res != null) {
                 socket.write(`VALUE|${res}\n`);
             } else {
-                socket.write('ERR: KEY_NOT_FOUND\n');
+                socket.write('ERR: KEY Not found.\n');
             }
             break;
 
@@ -159,6 +158,21 @@ const server = net.createServer((socket) => {
 
 // Expose Core Database Engine to default custom port 6379
 const ENGINE_PORT = 6379;
-server.listen(ENGINE_PORT, () => {
-    console.log(`🚀 KV-Engine operational on isolated TCP loopback port :${ENGINE_PORT}`);
-});
+
+async function stateServer() {
+    try {
+        console.log("Initializing aol based rehydration...");
+
+        await bootstrap();
+
+        server.listen(ENGINE_PORT, () => {
+            console.log(`🚀 KV-Engine operational on isolated TCP loopback port :${ENGINE_PORT}`);
+        });
+    }catch(error){
+        console.error("Critical failure, couldn't start server.", error);
+        process.exit(1);
+    }
+}
+
+stateServer();
+
