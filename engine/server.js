@@ -51,7 +51,7 @@ function handleDatabaseCommand(socket, payload) {
             }else{
                 socket.write('ERR: Invalid user id, please run get signup and get a userID before continuing.\n');
             }
-            socket.write('OK\n');
+            // socket.write('OK\n');
         break;
         case 'SET':
             if (!key || !value) {
@@ -110,7 +110,7 @@ function handleDatabaseCommand(socket, payload) {
 
         case 'STATS':
             const status = socket.cache.stats();
-            socket.write(`OK|${JSON.stringify(status)}\n`);
+            socket.write(`STATS|${JSON.stringify(status)}\n`);
             break;
 
         default:

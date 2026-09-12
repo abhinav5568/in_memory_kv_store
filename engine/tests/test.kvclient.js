@@ -22,6 +22,7 @@ function tests(){
         client.stats().then((data) => {
             console.log(data);
         })
+        client.disconnect();
     })
 }
 

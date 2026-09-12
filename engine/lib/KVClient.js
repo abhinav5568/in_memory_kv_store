@@ -60,6 +60,7 @@ class KVClient {
 
     /**
      * Internal router that maps TCP incoming frames back to the waiting promises.
+     * --> promise1, promise2 ,promise3 .... sequentially added to command queue
      */
     _handleServerResponse(frame, connectResolve, connectReject) {
         // Special case: Intercept the immediate response to the AUTH message sent on connect
@@ -148,8 +149,8 @@ class KVClient {
     async stats() {
         const rawResponse = await this._sendCommand('STATS');
         // Strips out your server format: "OK|{...}" -> parse JSON
-        if (rawResponse.startsWith('OK|')) {
-            return JSON.parse(rawResponse.substring(3));
+        if (rawResponse.startsWith('STATS|')) {
+            return JSON.parse(rawResponse.substring(6));
         }
         throw new Error(`Invalid stats frame format: ${rawResponse}`);
     }
