@@ -1,0 +1,9 @@
+
+CREATE|d600a8c4-bb69-41b6-9b84-5af7339a8b08
+CREATE|4efd8b61-bfdf-4e20-99cc-f264c470a886
+SET|d600a8c4-bb69-41b6-9b84-5af7339a8b08|profile|Alice_Dev
+SET|4efd8b61-bfdf-4e20-99cc-f264c470a886|profile|Bob_Manager
+SET|d600a8c4-bb69-41b6-9b84-5af7339a8b08|temp_token|SECRET_XYZ|2
+SET|d600a8c4-bb69-41b6-9b84-5af7339a8b08|target_key|Deletable_Value
+DEL|d600a8c4-bb69-41b6-9b84-5af7339a8b08|target_key
+
