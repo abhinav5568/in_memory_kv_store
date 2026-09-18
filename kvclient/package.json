@@ -1,0 +1,12 @@
+{
+  "name": "kvclient",
+  "version": "1.0.0",
+  "description": "TCP client for connecting to the KV engine",
+  "main": "KVClient.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abhinav5568/kvclient.git"
+  },
+  "keywords": ["tcp", "key-value", "cache", "redis-like"]
+}
