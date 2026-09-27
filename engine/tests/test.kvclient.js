@@ -1,4 +1,4 @@
-const KVClient = require('../lib/KVClient.js'); // Path to your updated client file
+const KVClient = require('../../kvclient/KVClient.js'); // Path to your updated client file
 
 // Helper to pause execution for TTL expiration verification
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

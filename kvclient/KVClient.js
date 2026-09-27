@@ -15,6 +15,7 @@ class KVClient {
         this.dynamicBuffer = "";
         this.commandQueue = [];
         
+        // handling connection promise resolution or rejection (handle server response deals with this separately)
         this._connectResolve = null;
         this._connectReject = null;
     }
@@ -37,7 +38,7 @@ class KVClient {
             this._connectReject = reject;
 
             this.client = net.createConnection({ host: this.host, port: this.port }, () => {
-                this.client.write(`AUTH|${this.userId}\n`);
+                this.client.write(`INIT|${this.userId}\n`);
             });
 
             this.client.on("data", (chunk) => {
@@ -67,14 +68,15 @@ class KVClient {
     }
 
     _handleServerResponse(frame) {
-        if (frame.startsWith("SUCCESS: User authorized.") || frame.startsWith("ERR: Invalid user id")) {
-            if (frame.startsWith("ERR:")) {
+        // handle user initialization in the tcp server
+        if (frame.startsWith("SUCCESS: User initialized.") || frame.startsWith("ERR")) {
+            if (frame.startsWith("ERR")) {
                 if (this._connectReject) this._connectReject(new Error(frame));
                 this.disconnect();
             } else {
                 if (this._connectResolve) this._connectResolve("Connected & Authenticated successfully.");
             }
-            this._cleanupAuthPromises();
+            this._cleanupAuthPromises(); // nulled auth promises
             return;
         }
 
@@ -104,8 +106,27 @@ class KVClient {
         });
     }
 
+    async _getSysState(){
+                try {
+                    const response = await this._sendCommand('SYS_STATE');
+                    let sysState;
+                    if(response.startsWith('SYS_STATE|')){
+                        sysState = response.substring(10);
+                    }
+                    if(sysState){
+                        return sysState;
+                    }
+                } catch (error) {
+                    if(error.message.includes('ERR')) return null;
+                    throw error;
+                }
+    }
+
     /**
-     * Creates a cache scope context instance
+     * Creates a cache (scoped context instance)
+     * each cache -> have their own context (no need to share cacheIDs separately over tcp pipeline)
+     * context handles the cacheID for a given user in the server
+     * single KV client class -> multiple cacheInstances each with their own context and thus cacheID
      */
     async createCache() {
         const rawResponse = await this._sendCommand("CREATE");
@@ -117,6 +138,7 @@ class KVClient {
         const cacheID = rawResponse.substring(9).trim();
         const self = this; 
 
+        // return a scoped context instance for each createCache request
         return {
             cacheID: cacheID,
             async set(key, value, ttl) {
@@ -140,6 +162,21 @@ class KVClient {
             async del(key) {
                 return self._sendCommand(`DEL|${cacheID}|${key}`);
             },
+            async getStats(){
+                try {
+                    const response = await self._sendCommand(`STATS|${cacheID}`);
+                    let stats;
+                    if(response.startsWith('STATS|')){
+                        stats = response.substring(6);
+                    }
+                    if(stats){
+                        return stats;
+                    }
+                } catch (error) {
+                    if(error.message.includes('ERR')) return null;
+                    throw error;
+                }
+            }
         };
     }
 
@@ -151,6 +188,7 @@ class KVClient {
         }
         this.commandQueue.forEach(cmd => cmd.reject(new Error("Client disconnected.")));
         this.commandQueue = [];
+        console.log("Disconnected from the server.")
     }
 }
 

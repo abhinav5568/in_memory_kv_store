@@ -40,6 +40,7 @@ class DLL {
       this.head.next = newNode;
       this.head = newNode;
     }
+
     return newNode;
   }
 
@@ -114,6 +115,8 @@ class LRUCache {
     this.lruMap = new Map(); 
     this.evicted_count = 0;
     this.command_count = 0;
+    this.hit_count = 0;
+    this.miss_count = 0;
   }
 
   insert(_key, _val, _ttl) {
@@ -152,6 +155,9 @@ class LRUCache {
 
     if (!this.lruMap.has(_key)) {
       console.log("[LRU] Invalid Key:", _key);
+
+      this.miss_count++;
+
       return null;
     }
 
@@ -161,6 +167,9 @@ class LRUCache {
     if(nodeRef.expires_at != Infinity && Date.now() > nodeRef.expires_at){
       this.dll.removeItem(nodeRef);
       this.lruMap.delete(nodeRef.key);
+
+      this.miss_count++;
+
       return null;
     }
 
@@ -170,6 +179,9 @@ class LRUCache {
     this.dll.removeItem(nodeRef);
     let newNode = this.dll.addItem(_key, value, TTL);
     this.lruMap.set(_key, newNode);
+
+    // increment hit count
+    this.hit_count++;
 
     return value;
   }
@@ -190,6 +202,8 @@ class LRUCache {
       return null;
     }
 
+    this.command_count++;
+
     let nodeRef = this.lruMap.get(_key);
     let value = nodeRef.val;
     this.dll.removeItem(nodeRef);
@@ -198,8 +212,11 @@ class LRUCache {
   }
 
   stats(){
-    this.command_count++;
+    // this.command_count++;
+
     let current_status = {
+        hit_count : this.hit_count,
+        miss_count: this.miss_count,
         key_count : this.lruMap.size,
         evictions : this.evicted_count, 
         commands_interpreted : this.command_count
@@ -207,10 +224,6 @@ class LRUCache {
     return current_status;
   }
 
-  lruSize() {
-    this.command_count++;
-    return this.lruMap.size;
-  }
 }
 
 

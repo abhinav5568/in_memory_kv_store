@@ -4,7 +4,7 @@ const LRUCache = require("./lru.js");
 
 /*
     stores users who have active caches in the server only,
-    map (userID, map(userID, ptr to cache instance))
+    map (userID, (map of CacheIds -> cache instance ptrs))
 */  
 
 class ConnectionManager{
@@ -14,15 +14,19 @@ class ConnectionManager{
     }
 
 
-    createUser(_userID){
-        let userID = _userID || randomUUID();
-        this.users.set(userID, new Map());
-        return userID;
-    }
+    // createUser(_userID){
+    //     let userID = _userID || randomUUID();
+    //     this.users.set(userID, new Map());
+    //     return userID;
+    // }
 
 
-    verifyUser(_userID){
-        return this.users.has(_userID);
+    initializeUser(_userID){
+        // return this.users.has(_userID);
+        if(!this.users.has(_userID)){
+            this.users.set(_userID, new Map());
+        }
+        return true;
     }
 
     deleteUser(_userID){
@@ -61,6 +65,27 @@ class ConnectionManager{
             return userCacheInstances.get(_cacheID);
         }
         return null;
+    }
+
+    getAllCacheStates(_userID){
+        if(!this.users.has(_userID)) {
+            return null;
+        }
+
+        const userCacheInstances = this.users.get(_userID); // userId -> map of cacheInstances
+
+        // create a json response (cache_id -> stats) 
+        let cache_stats = [];
+        for(const [cacheID , cacheInstance] of userCacheInstances.entries()){
+            
+            let status = cacheInstance.stats();
+
+            status.cacheID = cacheID;
+
+            cache_stats.push(status);
+        }
+
+        return cache_stats;
     }
 }
 

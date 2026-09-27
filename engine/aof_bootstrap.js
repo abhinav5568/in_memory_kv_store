@@ -84,7 +84,7 @@ async function bootstrap(params) {
     const userID = path.basename(file, ".aof");
     const filePath = path.join(storage_dir, file);
 
-    connections.createUser(userID);
+    connections.initializeUser(userID);
     // const userCache = connections.getCache(userID);
 
     try {
