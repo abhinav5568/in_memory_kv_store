@@ -212,7 +212,6 @@ class LRUCache {
   }
 
   stats(){
-    // this.command_count++;
 
     let current_status = {
         hit_count : this.hit_count,

@@ -29,13 +29,7 @@ function handleDatabaseCommand(socket, payload) {
         socket.write("ERR: INIT Requires a user_id.\n");
         return;
       }
-      // if (connections.initializeUser(authKey)) {
-      //   socket.userID = authKey;
-      //   loggerEngine.log(authKey, "");
-      //   socket.write('SUCCESS: User authorized.\n');
-      // } else {
-      //   socket.write('ERR: Invalid user id, please run get signup and get a userID before continuing.\n');
-      // }
+      
       if (typeof userID != "string") {
         socket.write("ERR: INIT Requires input of data type string.\n");
       }
@@ -223,6 +217,7 @@ const server = net.createServer((socket) => {
 const ENGINE_PORT = 6379;
 async function stateServer() {
   try {
+    // rehydration based on aol logs
     console.log("Initializing aol based rehydration...");
     await bootstrap();
     server.listen(ENGINE_PORT, () => {

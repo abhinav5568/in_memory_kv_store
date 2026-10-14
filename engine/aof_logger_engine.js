@@ -27,7 +27,7 @@ class aofLogger {
         
         // if stream not initialied then initialize one
         if(!stream){
-            const filePath = path.join(this.storage_dir, `${_userID}.aof`);
+            const filePath = path.join(this.storage_dir, `${_userID}.log`);
             stream = fs.createWriteStream(filePath, {flags: 'a', encoding: 'utf-8'});
             this.streams.set(_userID, stream);
         }

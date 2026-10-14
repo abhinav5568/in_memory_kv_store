@@ -1,4 +1,4 @@
-web_gateway/node_modules
-web_gateway
+web-dashboard/node_modules
+web-dashboard-server/node_modules
 dashboard/node_modules
 engine/data
